@@ -1,4 +1,4 @@
-name: Frontend CI/CD Pipeline
+name: Frontend CI/CD Pipeline & GitHub Pages Deployment
 
 on:
   push:
@@ -13,6 +13,17 @@ on:
       - test
       - dev
       - prod
+
+# Grant permissions required for GitHub Pages deployment & branch promotion
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
@@ -33,10 +44,34 @@ jobs:
         run: npm ci
 
       - name: Compile and Build Application
+        env:
+          GITHUB_PAGES: 'true'
         run: npm run build
 
       - name: Execute Tests
         run: npm test --if-present
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+  deploy-to-github-pages:
+    name: Deploy to Live GitHub Pages Site
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   promote-environment:
     name: Environment Promotion Flow

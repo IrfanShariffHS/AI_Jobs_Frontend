@@ -18,6 +18,7 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  base: process.env.GITHUB_PAGES === 'true' ? '/AI_Jobs_Frontend/' : '/',
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if
