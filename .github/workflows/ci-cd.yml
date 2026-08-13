@@ -1,0 +1,71 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - test
+      - dev
+      - prod
+  pull_request:
+    branches:
+      - main
+      - test
+      - dev
+      - prod
+
+jobs:
+  build-and-test:
+    name: Build & Test Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Compile and Build Application
+        run: npm run build
+
+      - name: Execute Tests
+        run: npm test --if-present
+
+  promote-environment:
+    name: Environment Promotion Flow
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Promote to test, dev, prod
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "Promoting main -> test..."
+          git checkout -B test
+          git merge origin/main --ff-only || git merge origin/main -m "Merge main into test [skip ci]"
+          git push origin test
+
+          echo "Promoting test -> dev..."
+          git checkout -B dev
+          git merge test --ff-only || git merge test -m "Merge test into dev [skip ci]"
+          git push origin dev
+
+          echo "Promoting dev -> prod..."
+          git checkout -B prod
+          git merge dev --ff-only || git merge dev -m "Merge dev into prod [skip ci]"
+          git push origin prod
